@@ -12,7 +12,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: Environments/dev
+        working-directory: C:\Agent\actions-runner\_work\terraform-azure-github-actions\terraform-azure-github-actions\Enviroments\dev
 
     steps:
 

@@ -1,13 +1,20 @@
-name: Terraform CI/CD
+name: Terraform DEV CI/CD
 
 on:
   push:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
-  terraform:
-    name: Terraform Plan and Apply
+
+  # =====================================================
+  # JOB 1 - TERRAFORM INIT & VALIDATE
+  # =====================================================
+  terraform-validate:
+    name: Terraform Init & Validate
     runs-on: self-hosted
 
     defaults:
@@ -33,8 +40,82 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
+
+  # =====================================================
+  # JOB 2 - TERRAFORM PLAN
+  # =====================================================
+  terraform-plan:
+    name: Terraform Plan
+    runs-on: self-hosted
+
+    needs:
+      - terraform-validate
+
+    defaults:
+      run:
+        working-directory: C:\Agent\actions-runner\_work\terraform-azure-github-actions\terraform-azure-github-actions\Enviroments\dev
+
+    steps:
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Terraform Init
+        run: terraform init
+
       - name: Terraform Plan
-        run: terraform plan
+        run: terraform plan -out=tfplan
+
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: Enviroments/dev/tfplan
+
+
+  # =====================================================
+  # JOB 3 - TERRAFORM APPLY
+  # =====================================================
+  terraform-apply:
+    name: Terraform Apply
+    runs-on: self-hosted
+
+    needs:
+      - terraform-plan
+
+    defaults:
+      run:
+        working-directory: C:\Agent\actions-runner\_work\terraform-azure-github-actions\terraform-azure-github-actions\Enviroments\dev
+
+    steps:
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan
+          path: Enviroments/dev
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve tfplan

@@ -1,0 +1,19 @@
+variable "dev-rg" {}
+variable "dev-stg" {}
+variable "dev-container" {}
+variable "dev-vnet" {}
+variable "dev-subnet" {}
+variable "dev-nic" {}
+variable "dev-keyvault" {}
+variable "dev-keyvault-secret" {}
+variable "dev-vm" {}
+variable "dev-pip" {}
+variable "dev-bastion" {}
+variable "dev-nsg" {}
+variable "dev-nsg-aassociation" {}
+variable "dev-sqlserver" {}
+variable "dev-sqldb" {}
+variable "dev-appgw" {}
+variable "dev-acr" {}
+variable "dev-aks" {}
+

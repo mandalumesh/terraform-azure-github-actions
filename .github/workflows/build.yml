@@ -1,42 +1,26 @@
-name: Terraform CI/CD
+name: Terraform CI
 
 on:
   push:
     branches:
       - main
 
-      # 🔴 CHANGE: Feature branch push par Plan chalega
-      - 'feature/**'
-
-    paths:
-      - 'environments/dev/**'
-      - 'modules/**'
-
   pull_request:
     branches:
       - main
-    paths:
-      - 'environments/dev/**'
-      - 'modules/**'
 
 permissions:
   contents: read
 
 env:
-  TF_VERSION: '1.9.8'
+  TF_VERSION: "1.9.8"
   WORKING_DIR: environments/dev
 
 jobs:
 
-  # ============================================================
-  # FEATURE BRANCH / PR / MAIN -> PLAN
-  # ============================================================
   terraform-plan:
-    name: Terraform Plan
-    runs-on: ubuntu-latest
-
-    # 🔴 CHANGE: Feature push + PR + main push
-    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    name: Terraform Validate & Plan
+    runs-on: [self-hosted, Windows, X64]
 
     defaults:
       run:
@@ -47,15 +31,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Terraform Version
+        run: terraform version
 
       - name: Terraform Init
         run: terraform init
@@ -64,46 +41,4 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        run: terraform plan -out=tfplan
-
-
-  # ============================================================
-  # MAIN -> APPLY
-  # ============================================================
-  terraform-apply:
-    name: Terraform Apply
-    runs-on: ubuntu-latest
-
-    # 🟢 CORRECT - no change
-    needs: terraform-plan
-
-    # 🟢 CORRECT - Apply ONLY on main
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    environment:
-      name: production
-
-    defaults:
-      run:
-        working-directory: ${{ env.WORKING_DIR }}
-
-    steps:
-
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Terraform Init
-        run: terraform init
-
-      - name: Terraform Apply
-        run: terraform apply -auto-approve
+        run: terraform plan

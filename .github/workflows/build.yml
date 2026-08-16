@@ -19,7 +19,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: Enviroments/dev
+        working-directory: C:\Agent\actions-runner\_work\terraform-azure-github-actions\terraform-azure-github-actions\Enviroments\dev
 
     steps:
 
@@ -62,8 +62,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: Enviroments/dev
-
+        working-directory: C:\Agent\actions-runner\_work\terraform-azure-github-actions\terraform-azure-github-actions\Enviroments\dev
     steps:
 
       - name: Checkout Code

@@ -1,36 +1,74 @@
-name: Self-Hosted Plan Pipeline
+name: Terraform Self-Hosted CI/CD Pipeline
 
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Select action to execute'
+        required: true
+        default: 'plan'
+        type: choice
+        options:
+          - plan
+          - apply
 
 jobs:
-  plan-job:
-    name: Run Plan Stage
-    runs-on: self-hosted  # Aapke self-hosted runner par chalega
+  # -------------------------------------------------------------
+  # STAGE 1: PLAN (Init -> Validate -> Plan)
+  # -------------------------------------------------------------
+  terraform-plan:
+    name: "Terraform Plan"
+    runs-on: self-hosted
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      # ---------------------------------------------------------
-      # CASE 1: Agar Terraform use kar rahe hain (Terraform Plan)
-      # ---------------------------------------------------------
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
       - name: Terraform Init
+        shell: cmd
         run: terraform init
 
-      - name: Terraform Plan
-        run: terraform plan
+      - name: Terraform Validate
+        shell: cmd
+        run: terraform validate
 
-      # ---------------------------------------------------------
-      # CASE 2: Agar Normal Application / Custom Script hai
-      # ---------------------------------------------------------
-      # - name: Run Dry-Run / Plan Script
-      #   run: |
-      #     echo "Running plan phase..."
-      #     npm run test # ya aapka build/plan command
+      - name: Terraform Plan
+        shell: cmd
+        run: terraform plan -out=tfplan
+
+      # Plan file ko save karte hain taaki Apply step ise use kar sake
+      - name: Upload Terraform Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tf-plan
+          path: tfplan
+
+  # -------------------------------------------------------------
+  # STAGE 2: APPLY (Executes only when manually triggered with 'apply')
+  # -------------------------------------------------------------
+  terraform-apply:
+    name: "Terraform Apply"
+    needs: terraform-plan
+    runs-on: self-hosted
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.action == 'apply' }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download Terraform Plan Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tf-plan
+
+      - name: Terraform Init
+        shell: cmd
+        run: terraform init
+
+      - name: Terraform Apply
+        shell: cmd
+        run: terraform apply -auto-approve tfplan

@@ -41,14 +41,18 @@ jobs:
         run: |
           terraform validate
 
-      - name: Security scan
+  tfsec:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Run tfsec
         uses: aquasecurity/tfsec-action@v1.0.0
         with:
-          working-directory: C:\Agent\actions-runner\_work\terraform-azure-github-actions\terraform-azure-github-actions\Enviroments\dev
-          soft_fail: false
+          working_directory: C:\Agent\actions-runner\_work\terraform-azure-github-actions\terraform-azure-github-actions\Enviroments\dev
+
 
       - name: Terraform Plan
         run: |

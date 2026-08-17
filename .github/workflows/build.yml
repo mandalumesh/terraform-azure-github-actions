@@ -1,37 +1,40 @@
-name: Terraform DEV CI/CD
+name: Terraform Dev CI/CD
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
 
-  # ==============================
-  # STAGE 1 - VALIDATE + PLAN
-  # ==============================
+  # =====================================================
+  # STAGE 1 - DEV VALIDATE & PLAN
+  # =====================================================
   terraform-plan:
-    name: Terraform Validate & Plan
+    name: Dev - Terraform Validate & Plan
     runs-on: self-hosted
 
     defaults:
       run:
         working-directory: C:\Agent\actions-runner\_work\terraform-azure-github-actions\terraform-azure-github-actions\Enviroments\dev
+        shell: powershell
+
     steps:
 
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Terraform Version
+        run: terraform version
 
       - name: Terraform Init
         run: terraform init
@@ -40,50 +43,61 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        run: terraform plan -out=tfplan
-
-      - name: Verify Terraform Plan
-        shell: powershell
         run: |
           Write-Host "Current Directory:"
           Get-Location
 
-          Write-Host "Terraform Plan File:"
-          Get-Item .\tfplan
+          Write-Host "Running Terraform Plan..."
+
+          terraform plan -out=tfplan
+
+          Write-Host "Checking tfplan file..."
+
+          if (Test-Path ".\tfplan") {
+              Write-Host "tfplan created successfully."
+              Get-Item ".\tfplan"
+          }
+          else {
+              Write-Error "tfplan was not created."
+              exit 1
+          }
 
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
         with:
-          name: terraform-plan
-          path: ${{ github.workspace }}/Enviroments/dev/tfplan
+          name: terraform-dev-plan
+          path: Enviroments/dev/tfplan
           if-no-files-found: error
 
 
-  # ==============================
-  # STAGE 2 - APPLY
-  # ==============================
+  # =====================================================
+  # STAGE 2 - DEV APPLY
+  # =====================================================
   terraform-apply:
-    name: Terraform Apply
+    name: Dev - Terraform Apply
+    needs: terraform-plan
     runs-on: self-hosted
 
-    needs: terraform-plan
+    environment:
+      name: dev
 
     defaults:
       run:
         working-directory: C:\Agent\actions-runner\_work\terraform-azure-github-actions\terraform-azure-github-actions\Enviroments\dev
+        shell: powershell
 
     steps:
 
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Terraform Version
+        run: terraform version
 
       - name: Terraform Init
         run: terraform init
@@ -91,17 +105,25 @@ jobs:
       - name: Download Terraform Plan
         uses: actions/download-artifact@v4
         with:
-          name: terraform-plan
-          path: ${{ github.workspace }}/Enviroments/dev
+          name: terraform-dev-plan
+          path: Enviroments/dev
 
       - name: Verify Terraform Plan
-        shell: powershell
         run: |
           Write-Host "Current Directory:"
           Get-Location
 
-          Write-Host "Downloaded Plan:"
-          Get-Item .\tfplan
+          Write-Host "Checking downloaded tfplan..."
+
+          if (Test-Path ".\tfplan") {
+              Write-Host "tfplan downloaded successfully."
+              Get-Item ".\tfplan"
+          }
+          else {
+              Write-Error "tfplan not found."
+              exit 1
+          }
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve tfplan
+        run: |
+          terraform apply -auto-approve tfplan

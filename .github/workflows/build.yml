@@ -1,4 +1,4 @@
-name: Terraform Dev Plan
+name: Terraform Dev CI/CD
 
 on:
   push:
@@ -11,6 +11,9 @@ permissions:
 
 jobs:
 
+  # =====================================================
+  # STAGE 1 - DEV VALIDATE & PLAN
+  # =====================================================
   terraform-plan:
     name: Dev - Terraform Validate & Plan
     runs-on: self-hosted
@@ -75,10 +78,87 @@ jobs:
               exit 1
           }
 
-      # Upload Plan Artifact
+      # Upload Plan
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
         with:
           name: terraform-dev-plan
           path: Enviroments/dev/tfplan
           if-no-files-found: error
+
+
+  # =====================================================
+  # STAGE 2 - DEV APPLY
+  # =====================================================
+  terraform-apply:
+    name: Dev - Terraform Apply
+    needs: terraform-plan
+    runs-on: self-hosted
+
+    environment:
+      name: dev
+
+    defaults:
+      run:
+        working-directory: C:\Agent\actions-runner\_work\terraform-azure-github-actions\terraform-azure-github-actions\Enviroments\dev
+        shell: powershell
+
+    steps:
+
+      # Checkout
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Azure Login
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # Verify Azure Login
+      - name: Verify Azure Login
+        shell: powershell
+        run: |
+          Write-Host "Checking Azure Login..."
+          az account show
+
+      # Terraform Version
+      - name: Terraform Version
+        run: |
+          terraform version
+
+      # Terraform Init
+      - name: Terraform Init
+        run: |
+          terraform init
+
+      # Download Plan Artifact
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-dev-plan
+          path: Enviroments/dev
+
+      # Verify Plan
+      - name: Verify Terraform Plan
+        run: |
+          Write-Host "Current Directory:"
+          Get-Location
+
+          Write-Host "Checking downloaded tfplan..."
+
+          if (Test-Path ".\tfplan") {
+              Write-Host "SUCCESS: tfplan downloaded."
+              Get-Item ".\tfplan"
+          }
+          else {
+              Write-Error "ERROR: tfplan not found."
+              exit 1
+          }
+
+      # Terraform Apply
+      - name: Terraform Apply
+        run: |
+          Write-Host "Applying Terraform Plan..."
+
+          terraform apply -auto-approve tfplan
